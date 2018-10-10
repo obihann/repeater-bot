@@ -38,25 +38,31 @@ def load_rb(rb_href):
     return details
 
 def main():
-    workbook = load_workbook('radio.xlsx')
-    sheet = workbook['Repeaters']
-    row_num = 2
-    col_name = 'A'
-    cell_pos = "%s%d" % (col_name, row_num)
-    cell = sheet[cell_pos]
+    with open('repeaters.txt') as f:
+        callsigns = f.readlines()
 
-    repeaters = {}
+    callsigns = [x.strip() for x in callsigns]
 
-    while cell.value is not None:
-        repeaters[cell.value] = { "links": search_rb(cell.value)}
+    for x in callsigns:
+        for url in search_rb(x):
+            print(load_rb(url))
 
-        row_num += 1
-        cell_pos = "%s%d" % (col_name, row_num)
-        cell = sheet[cell_pos]
 
-    for callsign in repeaters:
-        for link in repeaters[callsign]['links']:
-            print(load_rb(link))
+    # workbook = load_workbook('radio.xlsx')
+    # sheet = workbook['Repeaters']
+    # row_num = 2
+    # col_name = 'A'
+    # cell_pos = "%s%d" % (col_name, row_num)
+    # cell = sheet[cell_pos]
+
+    # repeaters = {}
+
+    # while cell.value is not None:
+        # repeaters[cell.value] = { "links": search_rb(cell.value)}
+
+        # row_num += 1
+        # cell_pos = "%s%d" % (col_name, row_num)
+        # cell = sheet[cell_pos]
 
 
 main()
