@@ -29,25 +29,20 @@ _FONT_BODY = Font(name='Calibri',
         size=14)
 def _AS_TEXT(value): return str(value) if value is not None else ""
 
-
 class RepeaterBot:
     rb_url = 'https://www.repeaterbook.com'
-    wb_dest = 'repeaters.xlsx'
+    search_results = []
 
     def __init__(self, callsigns=None):
-        self.wb = Workbook()
-        self.ws = self.wb.active
-        self.ws.title = 'Repeaters'
         self.callsigns = callsigns
 
-        # build headers
-        self.ws['A1'].font = _FONT_HEADER
-        self.ws['A1'] = 'Callsign'
+        # search repeaterbook for all callsigns
+        self.search_results = [(sign, self.search_rb(sign)) for sign in self.callsigns]
 
-        for word in _KEYWORDS:
-            coords = "%s1" % _LETTERS[_KEYWORDS.index(word)+1]
-            self.ws[coords].font = _FONT_HEADER
-            self.ws[coords] = word[0]
+        row = 2
+        self.repeaters = []
+        for result in self.search_results:
+            self.repeaters += [self.load_rb(url) for url in result[1]]
 
     def search_rb(self, callsign):
         status, response = http.request("%s/repeaters/callResult.php?call=%s&submit=RepeaterBook" % (self.rb_url, callsign))
@@ -69,7 +64,7 @@ class RepeaterBot:
             details[keyword[1]] = None
 
         for x in soup.find_all('td'):
-            rb_cell = str(x.renderContents().strip())
+            rb_cell = str(x.encode_contents().strip())
 
             for keyword in _KEYWORDS:
                 cell_title = "%s:" % keyword[0]
@@ -77,6 +72,38 @@ class RepeaterBot:
                     details[keyword[1]] = x.find_next_sibling().renderContents().strip()
 
         return details
+
+    def save_excel(self, wb_dest='repeaters.xlsx'):
+        self.wb = Workbook()
+        self.ws = self.wb.active
+        self.ws.title = 'Repeaters'
+
+        # build headers
+        for word in _KEYWORDS:
+            coords = "%s1" % _LETTERS[_KEYWORDS.index(word)]
+            self.ws[coords].font = _FONT_HEADER
+            self.ws[coords] = word[0]
+
+        row = 2
+        for repeater in self.repeaters:
+            for word in _KEYWORDS:
+                col = _LETTERS[_KEYWORDS.index(word)]
+                coords = "%s%d" % (col, row)
+
+                self.ws[coords].font = _FONT_BODY
+                self.ws[coords] = repeater[word[1]]
+
+            row += 1
+
+        for column_cells in self.ws.iter_cols(max_col=len(_KEYWORDS), max_row=row):
+                length = max(len(_AS_TEXT(cell.value)) for cell in column_cells) * 1.5
+
+                if length > _MIN_COL_WIDTH:
+                    self.ws.column_dimensions[column_cells[0].column].width = length
+                else:
+                    self.ws.column_dimensions[column_cells[0].column].width = _MIN_COL_WIDTH
+
+        self.wb.save(filename = wb_dest)
 
 
 def main():
@@ -86,35 +113,7 @@ def main():
 
     # start repeaterbot and pass callsigns
     rpb = RepeaterBot([x.strip() for x in callsigns])
-
-    # populate rows
-    row = 2
-    for sign in rpb.callsigns:
-        for url in rpb.search_rb(sign):
-            repeater_data = rpb.load_rb(url)
-            rpb.ws["A%d" % (row)] = sign
-            rpb.ws["A%d" % (row)].font = _FONT_BODY
-
-            for word in _KEYWORDS:
-                col = _LETTERS[_KEYWORDS.index(word)+1]
-                coords = "%s%d" % (col, row)
-
-                rpb.ws[coords].font = _FONT_BODY
-                rpb.ws[coords] = repeater_data[word[1]]
-
-            row += 1
-
-    # fix widths
-    for column_cells in rpb.ws.iter_cols(max_col=len(_KEYWORDS), max_row=row):
-            length = max(len(_AS_TEXT(cell.value)) for cell in column_cells) * 1.5
-
-            if length > _MIN_COL_WIDTH:
-                rpb.ws.column_dimensions[column_cells[0].column].width = length
-            else:
-                rpb.ws.column_dimensions[column_cells[0].column].width = _MIN_COL_WIDTH
-
-    rpb.wb.save(filename = rpb.wb_dest)
-
+    rpb.save_excel()
 
 if __name__ == "__main__" :
     main()
