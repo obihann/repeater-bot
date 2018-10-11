@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from openpyxl import Workbook
 
 http = httplib2.Http()
+_LETTERS = string.ascii_uppercase
 _KEYWORDS = [('Downlink', 'downlink'), 
         ('Uplink', 'uplink'),
         ('Offset', 'offset'),
@@ -36,6 +37,8 @@ def load_rb(rb_href):
     soup = BeautifulSoup(response, 'html.parser')
 
     details = {}
+    for keyword in _KEYWORDS:
+        details[keyword[1]] = None
 
     for x in soup.find_all('td'):
         rb_cell = str(x.renderContents().strip())
@@ -55,26 +58,20 @@ def main():
     with open('repeaters.txt') as f:
         callsigns = f.readlines()
 
-    callsigns = [x.strip() for x in callsigns]
-    row_num = 2
-
-    _LETTERS = string.ascii_uppercase
-
     for word in _KEYWORDS:
         ws["%s1" % _LETTERS[_KEYWORDS.index(word)]] = word[0]
+
+    callsigns = [x.strip() for x in callsigns]
+    row_num = 2
 
     for sign in callsigns:
         for url in search_rb(sign):
             repeater_data = load_rb(url)
+            print(repeater_data)
             ws["A%d" % (row_num)] = sign
 
             for word in _KEYWORDS:
-                print(hasattr(repeater_data, word[1]))
-                print(word[1])
-                print(repeater_data[word[1]])
-                # if hasattr(repeater_data, word[1]):
-                    # print(repeater_data[word[1]])
-                    # ws["%s%d" % (_LETTERS[_KEYWORDS.index(word)], row_num)] = repeater_data[word[1]]
+                ws["%s%d" % (_LETTERS[_KEYWORDS.index(word)], row_num)] = repeater_data[word[1]]
 
             row_num += 1
 
