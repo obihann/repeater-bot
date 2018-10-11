@@ -6,7 +6,7 @@ from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Protection, Font, colors, Color
 
 http = httplib2.Http()
-def _AS_TEXT(value): return str(value) if value is not None else ""
+
 _MIN_COL_WIDTH = 30
 _LETTERS = string.ascii_uppercase
 _KEYWORDS = [('Downlink', 'downlink'), 
@@ -27,82 +27,93 @@ _FONT_HEADER = Font(name='Calibri',
         size=18)
 _FONT_BODY = Font(name='Calibri',
         size=14)
+def _AS_TEXT(value): return str(value) if value is not None else ""
 
+class RepeaterBot:
+    rb_url = 'https://www.repeaterbook.com'
+    search_results = []
 
-def search_rb(callsign):
-    status, response = http.request("https://www.repeaterbook.com/repeaters/callResult.php?call=%s&submit=RepeaterBook" % callsign)
-    soup = BeautifulSoup(response, 'html.parser')
+    def __init__(self, callsigns=None):
+        self.callsigns = callsigns
 
-    links = []
+        # search repeaterbook for all callsigns
+        self.search_results = [(sign, self.search_rb(sign)) for sign in self.callsigns]
 
-    for x in soup.find_all('a', title='View details'):
-        links.append(x['href'])
+        row = 2
+        self.repeaters = []
+        for result in self.search_results:
+            self.repeaters += [self.load_rb(url) for url in result[1]]
 
-    return links
+    def search_rb(self, callsign):
+        status, response = http.request("%s/repeaters/callResult.php?call=%s&submit=RepeaterBook" % (self.rb_url, callsign))
+        soup = BeautifulSoup(response, 'html.parser')
 
-def load_rb(rb_href):
-    status, response = http.request("https://www.repeaterbook.com/repeaters/%s" % rb_href)
-    soup = BeautifulSoup(response, 'html.parser')
+        links = []
 
-    details = {}
-    for keyword in _KEYWORDS:
-        details[keyword[1]] = None
+        for x in soup.find_all('a', title='View details'):
+            links.append(x['href'])
 
-    for x in soup.find_all('td'):
-        rb_cell = str(x.renderContents().strip())
+        return links
 
+    def load_rb(self, rb_href):
+        status, response = http.request("%s/repeaters/%s" % (self.rb_url, rb_href))
+        soup = BeautifulSoup(response, 'html.parser')
+
+        details = {}
         for keyword in _KEYWORDS:
-            cell_title = "%s:" % keyword[0]
-            if rb_cell.find(cell_title) != -1 and x.find_next_sibling():
-                details[keyword[1]] = x.find_next_sibling().renderContents().strip()
+            details[keyword[1]] = None
 
-    return details
+        for x in soup.find_all('td'):
+            rb_cell = str(x.encode_contents().strip())
 
-def main():
-    wb = Workbook()
-    wb_dest = 'repeaters.xlsx'
-    ws = wb.active
-    ws.title = 'Repeaters'
+            for keyword in _KEYWORDS:
+                cell_title = "%s:" % keyword[0]
+                if rb_cell.find(cell_title) != -1 and x.find_next_sibling():
+                    details[keyword[1]] = x.find_next_sibling().renderContents().strip()
 
-    # load callsigns from input file
-    with open('repeaters.txt') as f:
-        callsigns = f.readlines()
+        return details
 
-    # build headers
-    for word in _KEYWORDS:
-        coords = "%s1" % _LETTERS[_KEYWORDS.index(word)]
-        ws[coords].font = _FONT_HEADER
-        ws[coords] = word[0]
+    def save_excel(self, wb_dest='repeaters.xlsx'):
+        self.wb = Workbook()
+        self.ws = self.wb.active
+        self.ws.title = 'Repeaters'
 
-    callsigns = [x.strip() for x in callsigns]
-    row = 2
+        # build headers
+        for word in _KEYWORDS:
+            coords = "%s1" % _LETTERS[_KEYWORDS.index(word)]
+            self.ws[coords].font = _FONT_HEADER
+            self.ws[coords] = word[0]
 
-    # populate rows
-    for sign in callsigns:
-        for url in search_rb(sign):
-            repeater_data = load_rb(url)
-            ws["A%d" % (row)] = sign
-
+        row = 2
+        for repeater in self.repeaters:
             for word in _KEYWORDS:
                 col = _LETTERS[_KEYWORDS.index(word)]
                 coords = "%s%d" % (col, row)
 
-                ws[coords].font = _FONT_BODY
-                ws[coords] = repeater_data[word[1]]
+                self.ws[coords].font = _FONT_BODY
+                self.ws[coords] = repeater[word[1]]
 
             row += 1
 
-    # fix widths
-    for column_cells in ws.iter_cols(max_col=len(_KEYWORDS), max_row=row):
-            length = max(len(_AS_TEXT(cell.value)) for cell in column_cells) * 1.5
+        for column_cells in self.ws.iter_cols(max_col=len(_KEYWORDS), max_row=row):
+                length = max(len(_AS_TEXT(cell.value)) for cell in column_cells) * 1.5
 
-            if length > _MIN_COL_WIDTH:
-                ws.column_dimensions[column_cells[0].column].width = length
-            else:
-                ws.column_dimensions[column_cells[0].column].width = _MIN_COL_WIDTH
+                if length > _MIN_COL_WIDTH:
+                    self.ws.column_dimensions[column_cells[0].column].width = length
+                else:
+                    self.ws.column_dimensions[column_cells[0].column].width = _MIN_COL_WIDTH
 
-    wb.save(filename = wb_dest)
+        self.wb.save(filename = wb_dest)
 
+
+def main():
+    # load callsigns from input file
+    with open('repeaters.txt') as f:
+        callsigns = f.readlines()
+
+    # start repeaterbot and pass callsigns
+    rpb = RepeaterBot([x.strip() for x in callsigns])
+    rpb.save_excel()
 
 if __name__ == "__main__" :
     main()
