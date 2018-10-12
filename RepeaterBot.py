@@ -100,6 +100,7 @@ class RepeaterBot:
                 cell_title = "%s:" % keyword[0]
                 if rb_cell.find(cell_title) != -1 and x.find_next_sibling():
                     details[keyword[1]] = x.find_next_sibling().renderContents().strip()
+                    print(x.find_next_sibling().find('a'))
 
         return details
 
@@ -145,7 +146,7 @@ class RepeaterBot:
 
 def main():
     # load callsigns from input file
-    with open(sys.argv[0]) as f:
+    with open(sys.argv[1]) as f:
         callsigns = f.readlines()
 
     # start repeaterbot and pass callsigns
