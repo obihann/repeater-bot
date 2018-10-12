@@ -1,4 +1,5 @@
 import httplib2
+import sys
 import os
 import hashlib
 import string
@@ -144,7 +145,7 @@ class RepeaterBot:
 
 def main():
     # load callsigns from input file
-    with open('repeaters.txt') as f:
+    with open(sys.argv[0]) as f:
         callsigns = f.readlines()
 
     # start repeaterbot and pass callsigns
