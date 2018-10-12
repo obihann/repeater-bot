@@ -98,9 +98,10 @@ class RepeaterBot:
 
             for keyword in _KEYWORDS:
                 cell_title = "%s:" % keyword[0]
-                if rb_cell.find(cell_title) != -1 and x.find_next_sibling():
-                    details[keyword[1]] = x.find_next_sibling().renderContents().strip()
-                    print(x.find_next_sibling().find('a'))
+                next_sib = x.find_next_sibling()
+
+                if rb_cell.find(cell_title) != -1 and next_sib:
+                    details[keyword[1]] = next_sib.get_text().replace('\\n', '').strip()
 
         return details
 
