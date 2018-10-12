@@ -149,8 +149,10 @@ def main():
 
     # start repeaterbot and pass callsigns
     rpb = RepeaterBot([x.strip() for x in callsigns])
+
+    # print to screen and excel file
     rpb.print_repeaters()
-    # rpb.save_excel()
+    rpb.save_excel()
 
 if __name__ == "__main__" :
     main()

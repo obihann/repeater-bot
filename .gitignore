@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 radio.xlsx
 .cache
+repeaters.txt
+*~
+*.xlsx
