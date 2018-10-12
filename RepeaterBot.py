@@ -1,4 +1,6 @@
 import httplib2
+import os
+import hashlib
 import string
 from urllib import request
 from bs4 import BeautifulSoup
@@ -44,9 +46,36 @@ class RepeaterBot:
         for result in self.search_results:
             self.repeaters += [self.load_rb(url) for url in result[1]]
 
+    def _read_cache(self, key):
+        cache = open(".cache/%s" % hashlib.md5(key.encode()).hexdigest(), 'r')
+        res = cache.read()
+        cache.close()
+
+        return res
+
+    def _write_cache(self, key, val):
+        if not os.path.exists('.cache'):
+                os.makedirs('.cache')
+
+        cache = open(".cache/%s" % hashlib.md5(key.encode()).hexdigest(), 'w')
+        cache.write(str(val))
+        cache.close()
+
+    def _request(self, url):
+        # check if request is cached
+        try:
+            status = None
+            response = self._read_cache(url)
+        except FileNotFoundError:
+            # ok lets just make a new one then
+            status, response = http.request(url)
+            self._write_cache(url, response)
+        
+        return (status, response)
+
     def search_rb(self, callsign):
-        status, response = http.request("%s/repeaters/callResult.php?call=%s&submit=RepeaterBook" % (self.rb_url, callsign))
-        soup = BeautifulSoup(response, 'html.parser')
+        res = self._request("%s/repeaters/callResult.php?call=%s&submit=RepeaterBook" % (self.rb_url, callsign))
+        soup = BeautifulSoup(res[1], 'html.parser')
 
         links = []
 
@@ -56,8 +85,8 @@ class RepeaterBot:
         return links
 
     def load_rb(self, rb_href):
-        status, response = http.request("%s/repeaters/%s" % (self.rb_url, rb_href))
-        soup = BeautifulSoup(response, 'html.parser')
+        res = self._request("%s/repeaters/%s" % (self.rb_url, rb_href))
+        soup = BeautifulSoup(res[1], 'html.parser')
 
         details = {}
         for keyword in _KEYWORDS:
@@ -72,6 +101,13 @@ class RepeaterBot:
                     details[keyword[1]] = x.find_next_sibling().renderContents().strip()
 
         return details
+
+    def print_repeaters(self):
+        for repeater in self.repeaters:
+            for word in _KEYWORDS:
+                print("%s: %s" % (word[0], repeater[word[1]]))
+
+            print("---------")
 
     def save_excel(self, wb_dest='repeaters.xlsx'):
         self.wb = Workbook()
@@ -113,7 +149,8 @@ def main():
 
     # start repeaterbot and pass callsigns
     rpb = RepeaterBot([x.strip() for x in callsigns])
-    rpb.save_excel()
+    rpb.print_repeaters()
+    # rpb.save_excel()
 
 if __name__ == "__main__" :
     main()
