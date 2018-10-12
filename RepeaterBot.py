@@ -12,19 +12,21 @@ http = httplib2.Http()
 
 _MIN_COL_WIDTH = 30
 _LETTERS = string.ascii_uppercase
-_KEYWORDS = [('Downlink', 'downlink'), 
+_KEYWORDS = [
+        ('Call', 'call'),
+        ('Downlink', 'downlink'), 
         ('Uplink', 'uplink'),
         ('Offset', 'offset'),
         ('Uplink Tone', 'uplinktone'),
         ('Downlink Tone', 'downlinktone'),
-        ('Call', 'call'),
         ('Use', 'use'),
+        ('EchoLink', 'echolink'),
+        ('IRPL', 'irpl'),
         ('Sponsor', 'sponsor'),
         ('Affaliate', 'affaliate'),
         ('Links', 'links'),
-        ('EchoLink', 'echolink'),
-        ('IRPL', 'irpl'),
-        ('Last update','lastupdate')]
+        ('Last update','lastupdate'),
+    ]
 _FONT_HEADER = Font(name='Calibri',
         color=colors.BLUE,
         size=18)
@@ -103,6 +105,10 @@ class RepeaterBot:
                 if rb_cell.find(cell_title) != -1 and next_sib:
                     details[keyword[1]] = next_sib.get_text().replace('\\n', '').strip()
 
+                    if keyword[1] is 'uplink' or keyword[1] is 'downlink' or keyword[1] is 'offset':
+                        details[keyword[1]] = details[keyword[1]][:8]
+
+
         return details
 
     def print_repeaters(self):
@@ -135,7 +141,7 @@ class RepeaterBot:
             row += 1
 
         for column_cells in self.ws.iter_cols(max_col=len(_KEYWORDS), max_row=row):
-                length = max(len(_AS_TEXT(cell.value)) for cell in column_cells) * 1.5
+                length = max(len(_AS_TEXT(cell.value)) for cell in column_cells)
 
                 if length > _MIN_COL_WIDTH:
                     self.ws.column_dimensions[column_cells[0].column].width = length
